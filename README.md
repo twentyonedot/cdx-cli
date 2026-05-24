@@ -6,6 +6,14 @@ It is designed for one user managing their own Codex access. It is not a credent
 
 ## Install
 
+The npm package is not published yet. For beta testing from GitHub:
+
+```bash
+npm install -g github:twentyonedot/cdx-cli
+```
+
+After the first npm publish, the stable install command will be:
+
 ```bash
 npm install -g @twentyonedot/cdx-cli
 ```
