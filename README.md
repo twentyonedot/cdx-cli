@@ -21,11 +21,13 @@ cdx autoswitch status
 
 `cdx add [label]` runs `codex login --device-auth` in an isolated temporary `CODEX_HOME`, imports the resulting login snapshot, and removes the temporary folder. If you omit the label, `cdx` uses the login email as the label. It does not overwrite your active `~/.codex/auth.json`.
 
-## Proxy Mode
+## Default Proxy Mode
 
-Proxy mode is required for no-quit autoswitch. Swapping `auth.json` only affects future Codex processes; it does not reliably change the account used by an already-running Codex app or CLI session.
+Autoswitch uses proxy mode by default because this is the core `cdx` feature: switching the active Codex account without quitting an already-running Codex app or CLI session. Swapping `auth.json` only affects future Codex processes; it does not reliably change the account used by a live session.
 
-Manual commands such as `cdx add`, `cdx accounts`, `cdx refresh`, and `cdx remove` do not require the proxy. `cdx autoswitch enable [label]` is the explicit opt-in step that starts the authenticated loopback proxy, writes the managed Codex config block, and lets later autoswitch decisions change the selected account without asking you to quit Codex after setup.
+`cdx autoswitch enable [label]` starts the authenticated loopback proxy, writes the managed Codex config block, and lets later autoswitch decisions change the selected account without asking you to quit Codex after setup. To opt out and restore Codex config, run `cdx autoswitch disable`.
+
+Manual commands such as `cdx add`, `cdx accounts`, `cdx refresh`, and `cdx remove` remain available without starting autoswitch. They manage saved snapshots, but they do not provide live no-quit switching by themselves.
 
 ## What It Touches
 
@@ -34,7 +36,7 @@ Manual commands such as `cdx add`, `cdx accounts`, `cdx refresh`, and `cdx remov
 - `~/.cdx/runtime/` and `~/.cdx/logs/` for daemon/proxy state.
 - A marked managed block in `~/.codex/config.toml` when autoswitch is enabled.
 
-Disable and restore with:
+Opt out of proxy-backed autoswitch and restore with:
 
 ```bash
 cdx autoswitch disable

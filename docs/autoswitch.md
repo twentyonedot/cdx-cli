@@ -2,11 +2,17 @@
 
 Autoswitch is the main feature of `cdx`. It monitors usage for saved ChatGPT/Codex login snapshots and switches the selected proxy account when the current account drops below configured thresholds.
 
-## Proxy Requirement
+## Default Proxy Mode
 
-Autoswitch needs proxy mode for live, no-quit switching. A running Codex app or CLI session should not be expected to re-read a changed `auth.json`, so `cdx` does not use auth-file swapping as the live switching mechanism.
+Autoswitch uses proxy mode by default for live, no-quit switching. A running Codex app or CLI session should not be expected to re-read a changed `auth.json`, so `cdx` does not use auth-file swapping as the live switching mechanism.
 
-`cdx autoswitch enable [label]` opts in to proxy mode. It starts the authenticated loopback proxy, writes a marked managed block to `~/.codex/config.toml`, and starts the portable daemon. After that setup, autoswitch decisions update the account selected by the proxy instead of asking you to quit Codex.
+`cdx autoswitch enable [label]` starts the authenticated loopback proxy, writes a marked managed block to `~/.codex/config.toml`, and starts the portable daemon. After that setup, autoswitch decisions update the account selected by the proxy instead of asking you to quit Codex.
+
+To opt out of proxy-backed autoswitch, run:
+
+```bash
+cdx autoswitch disable
+```
 
 Manual snapshot commands remain useful without proxy mode:
 
@@ -16,6 +22,8 @@ cdx accounts
 cdx refresh <label>
 cdx remove <label>
 ```
+
+Those commands manage saved snapshots only; they do not provide live no-quit switching without autoswitch.
 
 ## Defaults
 

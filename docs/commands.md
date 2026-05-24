@@ -28,7 +28,9 @@ Fetches live usage windows for one account or all eligible accounts.
 
 Controls proxy-backed autoswitch and the portable daemon.
 
-`cdx autoswitch enable [label]` is the opt-in setup for no-quit switching. It starts the authenticated loopback proxy, writes the managed Codex config block, and starts the daemon. Manual account commands do not need proxy mode, but automatic switching for an already-running Codex session does.
+`cdx autoswitch enable [label]` is the default setup for no-quit switching. It starts the authenticated loopback proxy, writes the managed Codex config block, and starts the daemon. Manual account commands do not need proxy mode, but automatic switching for an already-running Codex session does.
+
+`cdx autoswitch disable` is the opt-out path. It stops managed processes and restores the Codex config values previously changed by `cdx`.
 
 ## `cdx config autoswitch show|set|reset`
 

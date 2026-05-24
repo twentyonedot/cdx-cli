@@ -2,7 +2,7 @@
 
 `cdx` is a public beta. It depends on Codex login, local config, and live usage behavior that may change.
 
-No-quit autoswitch depends on Codex honoring the managed proxy configuration written by `cdx autoswitch enable [label]`. Manual snapshot commands work without proxy mode, but automatic switching for an already-running Codex session requires the proxy path.
+No-quit autoswitch depends on Codex honoring the managed proxy configuration written by `cdx autoswitch enable [label]`. Proxy-backed switching is the default autoswitch path. Manual snapshot commands work without proxy mode, but automatic switching for an already-running Codex session requires the proxy path.
 
 The CLI performs best-effort compatibility checks through:
 
