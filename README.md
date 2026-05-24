@@ -21,6 +21,12 @@ cdx autoswitch status
 
 `cdx add [label]` runs `codex login --device-auth` in an isolated temporary `CODEX_HOME`, imports the resulting login snapshot, and removes the temporary folder. If you omit the label, `cdx` uses the login email as the label. It does not overwrite your active `~/.codex/auth.json`.
 
+## Proxy Mode
+
+Proxy mode is required for no-quit autoswitch. Swapping `auth.json` only affects future Codex processes; it does not reliably change the account used by an already-running Codex app or CLI session.
+
+Manual commands such as `cdx add`, `cdx accounts`, `cdx refresh`, and `cdx remove` do not require the proxy. `cdx autoswitch enable [label]` is the explicit opt-in step that starts the authenticated loopback proxy, writes the managed Codex config block, and lets later autoswitch decisions change the selected account without asking you to quit Codex after setup.
+
 ## What It Touches
 
 - `~/.cdx/accounts/` for encrypted/auth-sensitive local snapshots.
@@ -48,7 +54,7 @@ cdx doctor
 
 ## Public Beta Notice
 
-Autoswitch depends on Codex local configuration and live account usage behavior. `cdx doctor` checks what it can, but Codex internals may change. Treat this beta as a tool with explicit disable/restore steps, not invisible infrastructure.
+Autoswitch depends on Codex local configuration, proxy behavior, and live account usage behavior. `cdx doctor` checks what it can, but Codex internals may change. Treat this beta as a tool with explicit disable/restore steps, not invisible infrastructure.
 
 See:
 

@@ -267,6 +267,10 @@ Quick start:
 State:
   cdx stores snapshots and runtime files under ~/.cdx.
   Autoswitch mutates only a marked managed block in ~/.codex/config.toml.
+
+Proxy mode:
+  Manual account commands do not require the proxy.
+  No-quit autoswitch does: cdx autoswitch enable [label] configures Codex to use the local proxy.
 `);
 
   program.command("add")
@@ -316,7 +320,7 @@ State:
     .argument("[label]", "saved account label to select")
     .option("--port <port>", "local proxy port", parseNumberOption)
     .option("--json", "emit secret-free JSON")
-    .description("Enable authenticated proxy mode, select an account, and start the portable daemon.")
+    .description("Enable required proxy mode for no-quit autoswitch, select an account, and start the portable daemon.")
     .action((label: string | undefined, options: { port?: number; json?: boolean }) => enableAutoswitch(label, options));
   autoswitch.command("disable")
     .option("--json", "emit secret-free JSON")

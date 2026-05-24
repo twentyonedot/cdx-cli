@@ -10,7 +10,7 @@ Lists saved snapshots, proxy selection, and autoswitch eligibility.
 
 ## `cdx use <label>`
 
-Selects the account used by the managed proxy.
+Selects the account used by the managed proxy. This does not rewrite `~/.codex/auth.json`; it changes the selected proxy snapshot used after `cdx autoswitch enable`.
 
 ## `cdx refresh <label>`
 
@@ -27,6 +27,8 @@ Fetches live usage windows for one account or all eligible accounts.
 ## `cdx autoswitch enable|disable|start|stop|status|run`
 
 Controls proxy-backed autoswitch and the portable daemon.
+
+`cdx autoswitch enable [label]` is the opt-in setup for no-quit switching. It starts the authenticated loopback proxy, writes the managed Codex config block, and starts the daemon. Manual account commands do not need proxy mode, but automatic switching for an already-running Codex session does.
 
 ## `cdx config autoswitch show|set|reset`
 

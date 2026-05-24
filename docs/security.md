@@ -13,6 +13,8 @@
 
 Autoswitch uses a loopback-only local proxy. The proxy binds to `127.0.0.1`, generates a random bearer token, and requires that token for HTTP and WebSocket requests.
 
+Proxy mode is opt-in and only enabled by `cdx autoswitch enable [label]`. It is required for no-quit autoswitch because running Codex processes should not be expected to re-read a changed `auth.json`. Manual snapshot management commands do not require the proxy.
+
 Run this to stop the daemon/proxy and restore the managed Codex config block:
 
 ```bash
