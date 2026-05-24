@@ -12,6 +12,8 @@ The npm package is not published yet. For beta testing from GitHub:
 npm install -g github:twentyonedot/cdx-cli
 ```
 
+The GitHub beta install uses the committed build output. If you cloned the repo instead, run `npm ci && npm run build && npm i -g .`.
+
 After the first npm publish, the stable install command will be:
 
 ```bash
