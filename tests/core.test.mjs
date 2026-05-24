@@ -46,6 +46,7 @@ async function withHome(fn) {
 test("label validation rejects unsafe labels", async () => {
   const { validateLabel } = await import("../dist/labels.js");
   assert.equal(validateLabel("work-1"), "work-1");
+  assert.equal(validateLabel("user+codex@example.com"), "user+codex@example.com");
   assert.throws(() => validateLabel("../x"), /path separators|parent-directory/);
   assert.throws(() => validateLabel("autoswitch"), /reserved/);
 });
@@ -62,6 +63,17 @@ test("account snapshots save and list without exposing tokens", async () => {
     const json = JSON.stringify(serializeAccount(accounts[0]));
     assert.equal(json.includes("access_token"), false);
     assert.equal(json.includes("token-acct"), false);
+  });
+});
+
+test("email labels are valid account labels", async () => {
+  await withHome(async (home) => {
+    const { upsertAccountFromSnapshot, listAccounts } = await import("../dist/store.js");
+    const authPath = path.join(home, "auth.json");
+    fs.writeFileSync(authPath, `${JSON.stringify(fakeAuth({ email: "user+codex@example.com" }))}\n`);
+    const saved = upsertAccountFromSnapshot("user+codex@example.com", authPath);
+    assert.equal(saved.label, "user+codex@example.com");
+    assert.equal(listAccounts()[0].label, "user+codex@example.com");
   });
 });
 

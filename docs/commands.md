@@ -1,8 +1,8 @@
 # Commands
 
-## `cdx add <label>`
+## `cdx add [label]`
 
-Runs `codex login --device-auth` in a temporary isolated `CODEX_HOME`, imports the resulting ChatGPT/Codex auth snapshot, and removes the temp folder.
+Runs `codex login --device-auth` in a temporary isolated `CODEX_HOME`, imports the resulting ChatGPT/Codex auth snapshot, and removes the temp folder. If no label is provided, the login email becomes the label.
 
 ## `cdx accounts [--json]`
 

@@ -19,7 +19,7 @@ cdx autoswitch enable work
 cdx autoswitch status
 ```
 
-`cdx add <label>` runs `codex login --device-auth` in an isolated temporary `CODEX_HOME`, imports the resulting login snapshot, and removes the temporary folder. It does not overwrite your active `~/.codex/auth.json`.
+`cdx add [label]` runs `codex login --device-auth` in an isolated temporary `CODEX_HOME`, imports the resulting login snapshot, and removes the temporary folder. If you omit the label, `cdx` uses the login email as the label. It does not overwrite your active `~/.codex/auth.json`.
 
 ## What It Touches
 

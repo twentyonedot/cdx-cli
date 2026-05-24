@@ -21,8 +21,8 @@ export function validateLabel(label: string): string {
   if (normalized.includes("/") || normalized.includes("\\") || normalized.includes("..")) {
     throw new CdxError("invalid-label", "Labels cannot contain path separators or parent-directory segments.");
   }
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(normalized)) {
-    throw new CdxError("invalid-label", "Labels may contain letters, numbers, dots, underscores, and hyphens, and must start with a letter or number.");
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9@+._-]*$/.test(normalized)) {
+    throw new CdxError("invalid-label", "Labels may contain letters, numbers, @, plus signs, dots, underscores, and hyphens, and must start with a letter or number.");
   }
   if (RESERVED_LABELS.has(normalized.toLowerCase())) {
     throw new CdxError("invalid-label", `Label "${normalized}" is reserved.`);

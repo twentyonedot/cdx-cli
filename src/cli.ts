@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
+import { parseAuthFile } from "./auth.js";
 import { runAutoswitch, latestAutoswitchDecision, autoswitchLoop } from "./autoswitch.js";
 import { detectCodexCompatibility, runIsolatedCodexLogin } from "./codex.js";
 import { disableCodexProxyConfig, enableCodexProxyConfig } from "./codexConfig.js";
@@ -62,7 +63,7 @@ function renderAccounts(json: boolean): void {
   }
   console.log(bold("CDX Accounts"));
   if (accounts.length === 0) {
-    console.log(warn("No accounts saved yet. Run `cdx add <label>` to add one."));
+    console.log(warn("No accounts saved yet. Run `cdx add [label]` to add one."));
     return;
   }
   for (const account of accounts) {
@@ -74,10 +75,16 @@ function renderAccounts(json: boolean): void {
   }
 }
 
-function importIsolatedLogin(label: string, expectedRecordKey?: string): void {
+function importIsolatedLogin(label: string | undefined, expectedRecordKey?: string): void {
   const tempHome = runIsolatedCodexLogin();
   try {
-    const account = upsertAccountFromSnapshot(label, path.join(tempHome, "auth.json"), expectedRecordKey);
+    const authPath = path.join(tempHome, "auth.json");
+    const authInfo = parseAuthFile(authPath);
+    const effectiveLabel = label || authInfo.email;
+    if (!effectiveLabel) {
+      throw new CdxError("missing-label", "No label was provided and the Codex login did not expose an email address.");
+    }
+    const account = upsertAccountFromSnapshot(effectiveLabel, authPath, expectedRecordKey);
     console.log(success(`Saved ${account.label}`));
     printKeyValue("email", account.email || "unknown");
     printKeyValue("next", "cdx autoswitch enable <label>");
@@ -263,9 +270,9 @@ State:
 `);
 
   program.command("add")
-    .argument("<label>", "safe label for this ChatGPT/Codex account")
+    .argument("[label]", "optional label for this ChatGPT/Codex account; defaults to the login email")
     .description("Run codex login --device-auth in an isolated temp CODEX_HOME and save the resulting account.")
-    .action((label: string) => withLock("global", () => importIsolatedLogin(label)));
+    .action((label: string | undefined) => withLock("global", () => importIsolatedLogin(label)));
 
   program.command("accounts")
     .option("--json", "emit secret-free JSON")
