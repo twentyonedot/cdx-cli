@@ -1,0 +1,97 @@
+import { parseAuthFile } from "./auth.js";
+import { CdxError } from "./errors.js";
+import type { AccountView } from "./store.js";
+
+const USAGE_ENDPOINT = "https://chatgpt.com/backend-api/wham/usage";
+
+export interface UsageWindow {
+  readonly windowMinutes: number;
+  readonly usedPercent: number;
+  readonly resetsAt: string | null;
+}
+
+export interface UsageSnapshot {
+  readonly source: "live";
+  readonly checkedAt: string;
+  readonly fiveHour: UsageWindow | null;
+  readonly sevenDay: UsageWindow | null;
+}
+
+interface RawWindow {
+  readonly window_minutes?: unknown;
+  readonly limit_window_seconds?: unknown;
+  readonly used_percent?: unknown;
+  readonly reset_at?: unknown;
+}
+
+interface RawUsage {
+  readonly primary?: RawWindow | null;
+  readonly secondary?: RawWindow | null;
+  readonly rate_limit?: {
+    readonly primary_window?: RawWindow | null;
+    readonly secondary_window?: RawWindow | null;
+  };
+}
+
+function normalizeWindow(window: RawWindow | null | undefined): UsageWindow | null {
+  if (!window) {
+    return null;
+  }
+  const minutes = typeof window.window_minutes === "number"
+    ? window.window_minutes
+    : typeof window.limit_window_seconds === "number"
+      ? Math.ceil(window.limit_window_seconds / 60)
+      : null;
+  const usedPercent = typeof window.used_percent === "number" ? window.used_percent : null;
+  if (minutes === null || usedPercent === null) {
+    return null;
+  }
+  return {
+    windowMinutes: minutes,
+    usedPercent,
+    resetsAt: typeof window.reset_at === "number" ? new Date(window.reset_at * 1000).toISOString() : null
+  };
+}
+
+function pickWindow(windows: readonly (UsageWindow | null)[], minutes: number): UsageWindow | null {
+  return windows.find((window) => window?.windowMinutes === minutes) || null;
+}
+
+export function remainingPercent(window: UsageWindow | null): number | null {
+  return window ? Math.max(0, Math.min(100, Math.round((100 - window.usedPercent) * 10) / 10)) : null;
+}
+
+export async function fetchUsage(account: AccountView): Promise<UsageSnapshot> {
+  const auth = parseAuthFile(account.snapshotPath);
+  if (!auth.accessToken || !auth.accountId) {
+    throw new CdxError("usage-unavailable", `Account "${account.label}" is missing live usage credentials.`);
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(USAGE_ENDPOINT, {
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+        "ChatGPT-Account-Id": auth.accountId,
+        "User-Agent": "@twentyonedot/cdx-cli"
+      },
+      signal: controller.signal
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      throw new CdxError("usage-unavailable", `Usage request failed for "${account.label}" with ${response.status}.`);
+    }
+    const raw = JSON.parse(text) as RawUsage;
+    const primary = normalizeWindow(raw.rate_limit?.primary_window || raw.primary);
+    const secondary = normalizeWindow(raw.rate_limit?.secondary_window || raw.secondary);
+    const windows = [primary, secondary];
+    const fiveHour = pickWindow(windows, 300);
+    const sevenDay = pickWindow(windows, 10080);
+    if (!fiveHour && !sevenDay) {
+      throw new CdxError("usage-unavailable", `Usage response for "${account.label}" did not include supported windows.`);
+    }
+    return { source: "live", checkedAt: new Date().toISOString(), fiveHour, sevenDay };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
