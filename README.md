@@ -33,6 +33,7 @@ cdx autoswitch status
 - `~/.cdx/accounts/` for encrypted/auth-sensitive local snapshots.
 - `~/.cdx/config.json` for autoswitch thresholds.
 - `~/.cdx/runtime/` and `~/.cdx/logs/` for daemon/service state.
+- `~/.cdx/tmp/` for isolated Codex login homes that are removed after import.
 - A marked managed block in `~/.codex/config.toml` when autoswitch is enabled.
 
 Opt out of autoswitch and restore with:

@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { enableCodexProxyConfig } from "./codexConfig.js";
 import { daemonStatus, startDaemon, type DaemonStatus } from "./daemon.js";
 import { CdxError } from "./errors.js";
+import { ensurePrivateDir } from "./fsx.js";
 import { getPaths } from "./paths.js";
 import { generateProxyToken, processIsAlive, readProxyState, selectProxyAccount, writeProxyState } from "./proxy.js";
 
@@ -28,8 +29,11 @@ export function ensureProxyServer(port: number): Promise<void> {
   if (processIsAlive(state.serverPid)) {
     return Promise.resolve();
   }
-  const out = fs.openSync(path.join(getPaths().logsDir, "proxy.log"), "a");
-  const err = fs.openSync(path.join(getPaths().logsDir, "proxy-error.log"), "a");
+  const paths = getPaths();
+  ensurePrivateDir(paths.runtimeDir);
+  ensurePrivateDir(paths.logsDir);
+  const out = fs.openSync(path.join(paths.logsDir, "proxy.log"), "a");
+  const err = fs.openSync(path.join(paths.logsDir, "proxy-error.log"), "a");
   const child = spawn(process.execPath, [new URL("../dist/cli.js", import.meta.url).pathname, "__proxy", "--port", String(port)], {
     detached: true,
     stdio: ["ignore", out, err],

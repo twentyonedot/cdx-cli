@@ -6,6 +6,7 @@ export interface CdxPaths {
   accountsDir: string;
   runtimeDir: string;
   logsDir: string;
+  tempDir: string;
   locksDir: string;
   configPath: string;
   indexPath: string;
@@ -28,12 +29,14 @@ export function getPaths(home = resolveCdxHome()): CdxPaths {
   const accountsDir = path.join(home, "accounts");
   const runtimeDir = path.join(home, "runtime");
   const logsDir = path.join(home, "logs");
+  const tempDir = path.join(home, "tmp");
   const locksDir = path.join(home, "locks");
   return {
     home,
     accountsDir,
     runtimeDir,
     logsDir,
+    tempDir,
     locksDir,
     configPath: path.join(home, "config.json"),
     indexPath: path.join(accountsDir, "index.json"),

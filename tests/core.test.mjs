@@ -83,6 +83,13 @@ test("email labels are valid account labels", async () => {
   });
 });
 
+test("cdx paths include an internal temp dir for isolated logins", async () => {
+  await withHome(async (home) => {
+    const { getPaths } = await import("../dist/paths.js");
+    assert.equal(getPaths().tempDir, path.join(home, "tmp"));
+  });
+});
+
 test("autoswitch chooses the strongest eligible candidate", async () => {
   await withHome(async (home) => {
     const { upsertAccountFromSnapshot } = await import("../dist/store.js");

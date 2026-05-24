@@ -1,10 +1,9 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { CdxError } from "./errors.js";
 import { ensurePrivateDir, safeRemoveDir } from "./fsx.js";
-import { resolveCodexHome } from "./paths.js";
+import { getPaths, resolveCodexHome } from "./paths.js";
 
 export interface CodexInvocation {
   readonly command: string;
@@ -66,7 +65,9 @@ export function assertCodexAvailable(): CodexInvocation {
 
 export function runIsolatedCodexLogin(): string {
   const invocation = assertCodexAvailable();
-  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "cdx-login-"));
+  const paths = getPaths();
+  ensurePrivateDir(paths.tempDir);
+  const tempHome = fs.mkdtempSync(path.join(paths.tempDir, "login-"));
   ensurePrivateDir(tempHome);
   const result = spawnSync(invocation.command, [...invocation.args, "login", "--device-auth"], {
     stdio: "inherit",

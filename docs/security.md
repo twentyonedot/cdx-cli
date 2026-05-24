@@ -7,7 +7,7 @@
 - Auth snapshots are stored under `~/.cdx/accounts/`.
 - Snapshot files and indexes are written with restrictive permissions where the OS supports them.
 - CLI output and JSON output never include access tokens, refresh tokens, proxy bearer tokens, raw JWTs, or raw auth JSON.
-- `cdx add` and `cdx refresh` use an isolated temporary `CODEX_HOME` and remove it after import.
+- `cdx add` and `cdx refresh` use an isolated temporary `CODEX_HOME` under `~/.cdx/tmp/` and remove it after import.
 
 ## Proxy Boundary
 
