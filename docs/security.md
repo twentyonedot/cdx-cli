@@ -13,7 +13,7 @@
 
 Autoswitch uses a loopback-only local proxy. The proxy binds to `127.0.0.1`, generates a random bearer token, and requires that token for HTTP and WebSocket requests.
 
-Proxy mode is the default autoswitch path and is enabled by `cdx autoswitch enable [label]`. It is required for no-quit autoswitch because running Codex processes should not be expected to re-read a changed `auth.json`. Manual snapshot management commands do not require the proxy, but they also do not provide live no-quit switching by themselves.
+`cdx add [label]` starts the local proxy and daemon after saving the account snapshot. This is required for no-quit autoswitch because running Codex processes should not be expected to re-read a changed `auth.json`. If you only want to save a snapshot, use `cdx add --no-autoswitch [label]`.
 
 Run this to stop the daemon/proxy and restore the managed Codex config block:
 
@@ -27,5 +27,5 @@ If something fails midway:
 
 1. Run `cdx autoswitch disable`.
 2. Inspect `~/.codex/config.toml`.
-3. Restore from the `.bak.cdx.*` backup noted by `cdx autoswitch enable` if needed.
+3. Restore from the `.bak.cdx.*` backup noted by `cdx add` or `cdx autoswitch enable` if needed.
 4. Run `cdx doctor --json` to verify state.

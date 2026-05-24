@@ -1,24 +1,28 @@
 #!/usr/bin/env node
-import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { parseAuthFile } from "./auth.js";
 import { runAutoswitch, latestAutoswitchDecision, autoswitchLoop } from "./autoswitch.js";
+import { enableAutoswitchRuntime } from "./autoswitchSetup.js";
 import { detectCodexCompatibility, runIsolatedCodexLogin } from "./codex.js";
-import { disableCodexProxyConfig, enableCodexProxyConfig } from "./codexConfig.js";
+import { disableCodexProxyConfig } from "./codexConfig.js";
 import { loadConfig, resetAutoswitchConfig, updateAutoswitchConfig, type AutoswitchConfig } from "./config.js";
 import { CdxError } from "./errors.js";
 import { safeRemoveDir } from "./fsx.js";
 import { withLock, withLockAsync } from "./lock.js";
 import { bold, info, muted, printError, printJson, printKeyValue, success, warn } from "./output.js";
-import { getPaths } from "./paths.js";
-import { defaultProxyState, generateProxyToken, processIsAlive, readProxyState, runProxyServer, selectProxyAccount, writeProxyState } from "./proxy.js";
-import { listAccounts, removeAccount, requireAccount, serializeAccount, upsertAccountFromSnapshot } from "./store.js";
+import { defaultProxyState, processIsAlive, readProxyState, runProxyServer, selectProxyAccount, writeProxyState } from "./proxy.js";
+import { listAccounts, removeAccount, requireAccount, serializeAccount, upsertAccountFromSnapshot, type StoredAccount } from "./store.js";
 import { fetchUsage, remainingPercent } from "./usage.js";
 import { daemonStatus, startDaemon, stopDaemon } from "./daemon.js";
 
 interface JsonOption {
   readonly json?: boolean;
+}
+
+interface AddOptions {
+  readonly autoswitch?: boolean;
+  readonly port?: number;
 }
 
 function parseNumberOption(value: string): number {
@@ -55,6 +59,10 @@ function configPatchFromOptions(options: Record<string, unknown>): Partial<Autos
   return patch;
 }
 
+function portOption(port: number | undefined): { port?: number } {
+  return port === undefined ? {} : { port };
+}
+
 function renderAccounts(json: boolean): void {
   const accounts = listAccounts();
   if (json) {
@@ -75,7 +83,7 @@ function renderAccounts(json: boolean): void {
   }
 }
 
-function importIsolatedLogin(label: string | undefined, expectedRecordKey?: string): void {
+function importIsolatedLogin(label: string | undefined, expectedRecordKey?: string): StoredAccount {
   const tempHome = runIsolatedCodexLogin();
   try {
     const authPath = path.join(tempHome, "auth.json");
@@ -85,60 +93,43 @@ function importIsolatedLogin(label: string | undefined, expectedRecordKey?: stri
       throw new CdxError("missing-label", "No label was provided and the Codex login did not expose an email address.");
     }
     const account = upsertAccountFromSnapshot(effectiveLabel, authPath, expectedRecordKey);
-    console.log(success(`Saved ${account.label}`));
-    printKeyValue("email", account.email || "unknown");
-    printKeyValue("next", "cdx autoswitch enable <label>");
+    return account;
   } finally {
     safeRemoveDir(tempHome);
   }
 }
 
-async function ensureProxyServer(port: number): Promise<void> {
-  const state = readProxyState();
-  if (processIsAlive(state.serverPid)) {
-    return;
-  }
-  const out = fs.openSync(path.join(getPaths().logsDir, "proxy.log"), "a");
-  const err = fs.openSync(path.join(getPaths().logsDir, "proxy-error.log"), "a");
-  const child = (await import("node:child_process")).spawn(process.execPath, [new URL("../dist/cli.js", import.meta.url).pathname, "__proxy", "--port", String(port)], {
-    detached: true,
-    stdio: ["ignore", out, err],
-    env: process.env
-  });
-  child.unref();
-  if (!child.pid) {
-    throw new CdxError("proxy-start-failed", "Proxy process did not report a pid.");
-  }
-  writeProxyState({ ...state, enabled: true, port, serverPid: child.pid, updatedAt: new Date().toISOString() });
-}
-
 async function enableAutoswitch(label: string | undefined, options: { port?: number; json?: boolean }): Promise<void> {
   await withLockAsync("global", async () => {
-    const port = options.port || readProxyState().port || 4141;
-    const selected = label ? selectProxyAccount(label) : readProxyState();
-    if (!selected.selectedLabel) {
-      throw new CdxError("missing-selection", "Provide an account label for first enable: `cdx autoswitch enable <label>`.");
-    }
-    const token = selected.token || generateProxyToken();
-    const configState = enableCodexProxyConfig(port);
-    writeProxyState({
-      ...selected,
-      enabled: true,
-      port,
-      token,
-      configBackupPath: configState.backupPath,
-      updatedAt: new Date().toISOString()
-    });
-    await ensureProxyServer(port);
-    const daemon = startDaemon();
+    const result = await enableAutoswitchRuntime(label, portOption(options.port));
     if (options.json) {
-      printJson({ enabled: true, selectedLabel: selected.selectedLabel, port, daemon });
+      printJson(result);
       return;
     }
     console.log(success("Autoswitch enabled"));
-    printKeyValue("account", selected.selectedLabel);
-    printKeyValue("port", String(port));
-    printKeyValue("daemon", daemon.running ? `running pid ${daemon.pid}` : "not running");
+    printKeyValue("account", result.selectedLabel);
+    printKeyValue("port", String(result.port));
+    printKeyValue("daemon", result.daemon.running ? `running pid ${result.daemon.pid}` : "not running");
+    printKeyValue("restore", "cdx autoswitch disable");
+  });
+}
+
+async function addAccount(label: string | undefined, options: AddOptions): Promise<void> {
+  await withLockAsync("global", async () => {
+    const account = importIsolatedLogin(label);
+    console.log(success(`Saved ${account.label}`));
+    printKeyValue("email", account.email || "unknown");
+    if (options.autoswitch === false) {
+      printKeyValue("autoswitch", warn("skipped"));
+      printKeyValue("start", `cdx autoswitch enable ${account.label}`);
+      return;
+    }
+    const result = await enableAutoswitchRuntime(account.label, portOption(options.port));
+    printKeyValue("autoswitch", success("running"));
+    printKeyValue("account", result.selectedLabel);
+    printKeyValue("port", String(result.port));
+    printKeyValue("daemon", result.daemon.running ? `running pid ${result.daemon.pid}` : "not running");
+    printKeyValue("status", "cdx autoswitch status");
     printKeyValue("restore", "cdx autoswitch disable");
   });
 }
@@ -207,7 +198,7 @@ function renderStatus(json: boolean): void {
     return;
   }
   console.log(bold("CDX Autoswitch"));
-  printKeyValue("proxy", proxy.enabled ? success("enabled") : warn("disabled"));
+  printKeyValue("service", proxy.enabled ? success("enabled") : warn("disabled"));
   printKeyValue("selected", proxy.selectedLabel || "none");
   printKeyValue("daemon", daemon.running ? success(`running pid ${daemon.pid}`) : warn("stopped"));
   printKeyValue("interval", `${config.autoswitch.intervalSeconds}s`);
@@ -236,7 +227,7 @@ function runDoctor(json: boolean): void {
   console.log(bold("CDX Doctor"));
   printKeyValue("codex", compatibility.supported ? success(compatibility.version || "available") : warn(compatibility.issue || "unavailable"));
   printKeyValue("accounts", String(accounts.length));
-  printKeyValue("proxy", proxy.enabled ? success("enabled") : warn("disabled"));
+  printKeyValue("service", proxy.enabled ? success("enabled") : warn("disabled"));
   printKeyValue("daemon", daemon.running ? success("running") : warn("stopped"));
 }
 
@@ -255,28 +246,29 @@ async function main(): Promise<void> {
   const program = new Command();
   program
     .name("cdx")
-    .description("Public beta CLI for automatic Codex account switching through an authenticated local proxy.")
+    .description("Public beta CLI for automatic Codex account switching using an authenticated local service.")
     .showHelpAfterError()
     .addHelpText("after", `
 
 Quick start:
   cdx add work
-  cdx autoswitch enable work
   cdx autoswitch status
 
 State:
   cdx stores snapshots and runtime files under ~/.cdx.
   Autoswitch mutates only a marked managed block in ~/.codex/config.toml.
 
-Default proxy mode:
-  Autoswitch uses the local proxy so live Codex sessions can switch without quitting.
+How autoswitch works:
+  cdx routes Codex through a local authenticated service so live sessions can switch without quitting.
   Opt out and restore with: cdx autoswitch disable
 `);
 
   program.command("add")
     .argument("[label]", "optional label for this ChatGPT/Codex account; defaults to the login email")
-    .description("Run codex login --device-auth in an isolated temp CODEX_HOME and save the resulting account.")
-    .action((label: string | undefined) => withLock("global", () => importIsolatedLogin(label)));
+    .option("--no-autoswitch", "save the snapshot without starting live autoswitch")
+    .option("--port <port>", "local autoswitch service port", parseNumberOption)
+    .description("Add an account and start live autoswitch. Use --no-autoswitch for snapshot-only setup.")
+    .action((label: string | undefined, options: AddOptions) => addAccount(label, options));
 
   program.command("accounts")
     .option("--json", "emit secret-free JSON")
@@ -285,7 +277,7 @@ Default proxy mode:
 
   program.command("use")
     .argument("<label>", "saved account label")
-    .description("Select the account used by the managed proxy.")
+    .description("Select the account used by the local autoswitch service.")
     .action((label: string) => withLock("global", () => {
       const state = selectProxyAccount(label);
       console.log(success(`Selected ${state.selectedLabel || label}`));
@@ -296,7 +288,9 @@ Default proxy mode:
     .description("Re-login in an isolated temp CODEX_HOME and replace the snapshot only if identity matches.")
     .action((label: string) => withLock("global", () => {
       const existing = requireAccount(label);
-      importIsolatedLogin(existing.label, existing.recordKey);
+      const account = importIsolatedLogin(existing.label, existing.recordKey);
+      console.log(success(`Refreshed ${account.label}`));
+      printKeyValue("email", account.email || "unknown");
     }));
 
   program.command("remove")
@@ -315,16 +309,16 @@ Default proxy mode:
     .description("Fetch live usage windows for one account or all accounts.")
     .action((label: string | undefined, options: { all?: boolean; json?: boolean }) => runUsage(label, Boolean(options.all), Boolean(options.json)));
 
-  const autoswitch = program.command("autoswitch").description("Configure and run proxy-backed automatic account switching.");
+  const autoswitch = program.command("autoswitch").description("Configure and run live automatic account switching.");
   autoswitch.command("enable")
     .argument("[label]", "saved account label to select")
-    .option("--port <port>", "local proxy port", parseNumberOption)
+    .option("--port <port>", "local service port", parseNumberOption)
     .option("--json", "emit secret-free JSON")
-    .description("Enable required proxy mode for no-quit autoswitch, select an account, and start the portable daemon.")
+    .description("Set up live autoswitch, select an account, and start the portable daemon.")
     .action((label: string | undefined, options: { port?: number; json?: boolean }) => enableAutoswitch(label, options));
   autoswitch.command("disable")
     .option("--json", "emit secret-free JSON")
-    .description("Opt out of proxy-backed autoswitch, stop managed processes, and restore the backed-up Codex config.")
+    .description("Opt out of live autoswitch, stop managed processes, and restore the backed-up Codex config.")
     .action((options: JsonOption) => disableAutoswitch(options));
   autoswitch.command("start")
     .option("--json", "emit secret-free JSON")
@@ -350,7 +344,7 @@ Default proxy mode:
     });
   autoswitch.command("status")
     .option("--json", "emit secret-free JSON")
-    .description("Show proxy, daemon, config, and latest decision state.")
+    .description("Show local service, daemon, config, and latest decision state.")
     .action((options: JsonOption) => renderStatus(Boolean(options.json)));
   autoswitch.command("run")
     .option("--apply", "apply the recommended switch")
@@ -403,7 +397,7 @@ Default proxy mode:
 
   program.command("doctor")
     .option("--json", "emit secret-free JSON")
-    .description("Validate Codex, account store, proxy, daemon, and public beta readiness.")
+    .description("Validate Codex, account store, local service, daemon, and public beta readiness.")
     .action((options: JsonOption) => runDoctor(Boolean(options.json)));
 
   await program.parseAsync(process.argv);

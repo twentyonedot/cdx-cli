@@ -15,28 +15,27 @@ npm install -g @twentyonedot/cdx-cli
 ```bash
 cdx add work
 cdx add personal
-cdx autoswitch enable work
 cdx autoswitch status
 ```
 
-`cdx add [label]` runs `codex login --device-auth` in an isolated temporary `CODEX_HOME`, imports the resulting login snapshot, and removes the temporary folder. If you omit the label, `cdx` uses the login email as the label. It does not overwrite your active `~/.codex/auth.json`.
+`cdx add [label]` runs `codex login --device-auth` in an isolated temporary `CODEX_HOME`, imports the resulting login snapshot, removes the temporary folder, and starts live autoswitch. If you omit the label, `cdx` uses the login email as the label. It does not overwrite your active `~/.codex/auth.json`.
 
-## Default Proxy Mode
+## How Autoswitch Works
 
-Autoswitch uses proxy mode by default because this is the core `cdx` feature: switching the active Codex account without quitting an already-running Codex app or CLI session. Swapping `auth.json` only affects future Codex processes; it does not reliably change the account used by a live session.
+`cdx` routes Codex requests through a local authenticated loopback service. That service reads the selected saved snapshot and can change the active account for an already-running Codex app or CLI session. Swapping `auth.json` only affects future Codex processes; it does not reliably change the account used by a live session.
 
-`cdx autoswitch enable [label]` starts the authenticated loopback proxy, writes the managed Codex config block, and lets later autoswitch decisions change the selected account without asking you to quit Codex after setup. To opt out and restore Codex config, run `cdx autoswitch disable`.
+`cdx add [label]` sets this up automatically. It starts the local service, writes the managed Codex config block, and starts the autoswitch daemon. To save a snapshot without starting autoswitch, use `cdx add --no-autoswitch [label]`.
 
-Manual commands such as `cdx add`, `cdx accounts`, `cdx refresh`, and `cdx remove` remain available without starting autoswitch. They manage saved snapshots, but they do not provide live no-quit switching by themselves.
+`cdx autoswitch enable [label]` remains available as a repair or re-enable command. To opt out and restore Codex config, run `cdx autoswitch disable`.
 
 ## What It Touches
 
 - `~/.cdx/accounts/` for encrypted/auth-sensitive local snapshots.
 - `~/.cdx/config.json` for autoswitch thresholds.
-- `~/.cdx/runtime/` and `~/.cdx/logs/` for daemon/proxy state.
+- `~/.cdx/runtime/` and `~/.cdx/logs/` for daemon/service state.
 - A marked managed block in `~/.codex/config.toml` when autoswitch is enabled.
 
-Opt out of proxy-backed autoswitch and restore with:
+Opt out of autoswitch and restore with:
 
 ```bash
 cdx autoswitch disable
@@ -50,6 +49,7 @@ cdx use work
 cdx usage --all
 cdx config autoswitch show
 cdx config autoswitch set --trigger-5h 10 --min-5h 25 --min-7d 25 --cooldown 15
+cdx autoswitch status
 cdx autoswitch run
 cdx doctor
 ```

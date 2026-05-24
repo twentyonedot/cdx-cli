@@ -4,4 +4,4 @@
 
 - Initial public beta of `cdx`.
 - Adds account snapshot setup, authenticated local proxy mode, usage-aware autoswitch decisions, portable daemon controls, configuration, diagnostics, and documentation.
-- Clarifies that proxy-backed autoswitch is the default live-switching mode, with `cdx autoswitch disable` as the opt-out path.
+- Starts live autoswitch from `cdx add [label]`, with `cdx add --no-autoswitch [label]` for snapshot-only setup.

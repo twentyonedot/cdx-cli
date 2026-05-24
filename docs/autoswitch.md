@@ -1,29 +1,26 @@
 # Autoswitch
 
-Autoswitch is the main feature of `cdx`. It monitors usage for saved ChatGPT/Codex login snapshots and switches the selected proxy account when the current account drops below configured thresholds.
+Autoswitch is the main feature of `cdx`. It monitors usage for saved ChatGPT/Codex login snapshots and switches the selected account when the current account drops below configured thresholds.
 
-## Default Proxy Mode
+## How It Works
 
-Autoswitch uses proxy mode by default for live, no-quit switching. A running Codex app or CLI session should not be expected to re-read a changed `auth.json`, so `cdx` does not use auth-file swapping as the live switching mechanism.
+Autoswitch is set up by `cdx add [label]`. After a login snapshot is saved, `cdx` starts a local authenticated loopback service, writes a marked managed block to `~/.codex/config.toml`, and starts the portable daemon. After that setup, autoswitch decisions update the account selected by the local service instead of asking you to quit Codex.
 
-`cdx autoswitch enable [label]` starts the authenticated loopback proxy, writes a marked managed block to `~/.codex/config.toml`, and starts the portable daemon. After that setup, autoswitch decisions update the account selected by the proxy instead of asking you to quit Codex.
+A running Codex app or CLI session should not be expected to re-read a changed `auth.json`, so `cdx` does not use auth-file swapping as the live switching mechanism.
 
-To opt out of proxy-backed autoswitch, run:
+To opt out of autoswitch, run:
 
 ```bash
 cdx autoswitch disable
 ```
 
-Manual snapshot commands remain useful without proxy mode:
+To save a snapshot without starting autoswitch, run:
 
 ```bash
-cdx add [label]
-cdx accounts
-cdx refresh <label>
-cdx remove <label>
+cdx add --no-autoswitch [label]
 ```
 
-Those commands manage saved snapshots only; they do not provide live no-quit switching without autoswitch.
+`cdx autoswitch enable [label]` remains available as a repair or re-enable command.
 
 ## Defaults
 
@@ -44,7 +41,7 @@ cdx config autoswitch reset
 ## Run
 
 ```bash
-cdx autoswitch enable work
+cdx add work
 cdx autoswitch status
 cdx autoswitch run
 cdx autoswitch run --apply

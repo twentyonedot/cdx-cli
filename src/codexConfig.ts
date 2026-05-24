@@ -48,12 +48,17 @@ export function buildManagedBlock(port: number): string {
   ].join("\n");
 }
 
-export function enableCodexProxyConfig(port: number): ManagedConfigState {
+export function enableCodexProxyConfig(port: number, existingBackupPath?: string | null): ManagedConfigState {
   const configPath = getCodexConfigPath();
   ensurePrivateDir(path.dirname(configPath));
   const original = fs.existsSync(configPath) ? fs.readFileSync(configPath, "utf8") : "";
-  const backupPath = `${configPath}.bak.cdx.${Date.now()}.${randomUUID()}`;
-  writeFileAtomic(backupPath, original);
+  const useExistingBackup = Boolean(existingBackupPath && fs.existsSync(existingBackupPath));
+  const backupPath = useExistingBackup ? existingBackupPath as string : `${configPath}.bak.cdx.${Date.now()}.${randomUUID()}`;
+  if (!useExistingBackup) {
+    const strippedOriginal = stripManagedBlock(original);
+    const backupText = original.includes(BEGIN) && strippedOriginal ? `${strippedOriginal}\n` : original.includes(BEGIN) ? "" : original;
+    writeFileAtomic(backupPath, backupText);
+  }
   const next = insertRootBlock(stripManagedBlock(original), buildManagedBlock(port));
   writeFileAtomic(configPath, next);
   return {
@@ -84,6 +89,6 @@ export function disableCodexProxyConfig(backupPath: string | null): ManagedConfi
 export function assertManagedConfigPresent(): void {
   const configPath = getCodexConfigPath();
   if (!fs.existsSync(configPath) || !fs.readFileSync(configPath, "utf8").includes(BEGIN)) {
-    throw new CdxError("proxy-config-missing", "Codex is not configured for cdx proxy mode. Run `cdx autoswitch enable`.");
+    throw new CdxError("proxy-config-missing", "Codex is not configured for cdx autoswitch. Run `cdx add [label]` or `cdx autoswitch enable`.");
   }
 }

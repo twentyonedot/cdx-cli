@@ -32,14 +32,20 @@ function fakeAuth({ email = "user@example.com", userId = "user-1", accountId = "
 
 async function withHome(fn) {
   const previous = process.env.CDX_HOME;
+  const previousCodex = process.env.CODEX_HOME;
   const home = tempHome();
+  const codexHome = tempHome();
   process.env.CDX_HOME = home;
+  process.env.CODEX_HOME = codexHome;
   try {
-    await fn(home);
+    await fn(home, codexHome);
   } finally {
     if (previous === undefined) delete process.env.CDX_HOME;
     else process.env.CDX_HOME = previous;
+    if (previousCodex === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = previousCodex;
     fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(codexHome, { recursive: true, force: true });
   }
 }
 
@@ -117,6 +123,53 @@ test("autoswitch chooses the strongest eligible candidate", async () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+test("autoswitch setup selects account, writes config, and preserves original backup", async () => {
+  await withHome(async (home, codexHome) => {
+    const { upsertAccountFromSnapshot } = await import("../dist/store.js");
+    const { enableAutoswitchRuntime } = await import("../dist/autoswitchSetup.js");
+    const { readProxyState } = await import("../dist/proxy.js");
+    const { getPaths } = await import("../dist/paths.js");
+
+    const codexConfigPath = path.join(codexHome, "config.toml");
+    fs.mkdirSync(codexHome, { recursive: true });
+    fs.writeFileSync(codexConfigPath, "model = \"gpt-5\"\n");
+
+    const authPath = path.join(home, "auth.json");
+    fs.writeFileSync(authPath, `${JSON.stringify(fakeAuth())}\n`);
+    upsertAccountFromSnapshot("work", authPath);
+
+    const fakeDaemon = () => ({
+      running: true,
+      pid: 12345,
+      pidPath: getPaths().daemonPidPath,
+      logPath: getPaths().daemonLogPath,
+      errorLogPath: getPaths().daemonErrorLogPath
+    });
+    const first = await enableAutoswitchRuntime("work", { port: 45678 }, {
+      ensureProxyServer: async () => {},
+      startDaemon: fakeDaemon
+    });
+    const second = await enableAutoswitchRuntime("work", { port: 45679 }, {
+      ensureProxyServer: async () => {},
+      startDaemon: fakeDaemon
+    });
+
+    assert.equal(first.selectedLabel, "work");
+    assert.equal(second.port, 45679);
+    const state = readProxyState();
+    assert.equal(state.enabled, true);
+    assert.equal(state.selectedLabel, "work");
+    assert.equal(state.port, 45679);
+    assert.ok(state.token);
+    assert.ok(state.configBackupPath);
+    assert.equal(fs.readFileSync(state.configBackupPath, "utf8"), "model = \"gpt-5\"\n");
+    const config = fs.readFileSync(codexConfigPath, "utf8");
+    assert.match(config, /BEGIN CDX AUTOSWITCH/);
+    assert.match(config, /openai_base_url = "http:\/\/127\.0\.0\.1:45679\/v1"/);
+    assert.equal(config.includes(state.token), false);
   });
 });
 

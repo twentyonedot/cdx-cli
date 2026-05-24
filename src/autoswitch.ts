@@ -123,7 +123,7 @@ export async function buildAutoswitchDecision(apply: boolean, overrideConfig?: P
   const cooldown = cooldownRemainingMs(config, nowMs);
 
   if (!selected) {
-    return { checkedAt, action: "none", applied: false, reason: "No selected account. Run `cdx use <label>` or `cdx autoswitch enable <label>`.", current: null, candidate: null, cooldownRemainingMs: cooldown, config };
+    return { checkedAt, action: "none", applied: false, reason: "No selected account. Run `cdx add [label]` or `cdx use <label>`.", current: null, candidate: null, cooldownRemainingMs: cooldown, config };
   }
 
   const current = await usageFor(selected);
